@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Traffic Replayer — Web Console</title>
+<style>
+:root {
+  --bg:         #0d1117;
+  --surface:    #161b22;
+  --surface2:   #1e2430;
+  --surface3:   #252d3a;
+  --border:     #2a3140;
+  --border2:    #3a4255;
+  --accent:     #4c8ef5;
+  --accent-h:   #3a7de0;
+  --success:    #3fb950;
+  --danger:     #f85149;
+  --warning:    #d29922;
+  --text:       #e0e4ef;
+  --text-dim:   #7d8599;
+  --text-muted: #4a5168;
+  --mono: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+  background:var(--bg);color:var(--text);font-size:13px;
+  display:flex;flex-direction:column;
+}
+
+/* ── Header ── */
+.hd{
+  height:44px;flex-shrink:0;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;padding:0 20px;
+  user-select:none;
+}
+.hd-logo{display:flex;align-items:center;gap:8px}
+.hd-icon{
+  width:26px;height:26px;border-radius:6px;
+  background:linear-gradient(135deg,#4c8ef5,#7c4cf5);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;color:#fff;letter-spacing:-0.5px;
+}
+.hd-title{font-size:14px;font-weight:600;letter-spacing:0.2px}
+.hd-sub{font-size:11px;color:var(--text-dim);border-left:1px solid var(--border2);padding-left:10px;margin-left:2px}
+
+/* ── Layout ── */
+.layout{
+  flex:1;display:grid;
+  grid-template-columns:410px 1fr;
+  overflow:hidden;
+}
+
+/* ── Panel ── */
+.panel{display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--border)}
+.panel:last-child{border-right:none}
+.panel-hd{
+  height:40px;flex-shrink:0;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;padding:0 18px;
+}
+.panel-hd-title{
+  font-size:11px;font-weight:600;text-transform:uppercase;
+  letter-spacing:0.6px;color:var(--text-dim);
+}
+.panel-body{flex:1;overflow-y:auto;padding:18px}
+
+/* ── Form ── */
+.fg{margin-bottom:13px}
+.fg label{
+  display:block;font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.5px;
+  color:var(--text-dim);margin-bottom:5px;
+}
+.fg label .req{color:var(--danger);margin-left:1px}
+.fg input,.fg select{
+  width:100%;
+  background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);padding:8px 10px;border-radius:6px;
+  font-size:13px;font-family:inherit;transition:border-color .15s;
+}
+.fg input:focus,.fg select:focus{outline:none;border-color:var(--accent)}
+.fg input::placeholder{color:var(--text-muted);font-style:italic}
+.fg select option{background:var(--surface2)}
+.fg .hint{font-size:11px;color:var(--text-muted);margin-top:4px;font-style:italic;line-height:1.5}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* ── Buttons ── */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 16px;border:none;border-radius:6px;
+  font-size:13px;font-weight:500;font-family:inherit;
+  cursor:pointer;transition:background .15s,opacity .15s;white-space:nowrap;
+}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:not(:disabled):hover{background:var(--accent-h)}
+.btn-success{background:var(--success);color:#fff}
+.btn-success:not(:disabled):hover{background:#2ea043}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:not(:disabled):hover{background:#da3633}
+.btn-ghost{background:var(--surface3);color:var(--text-dim);border:1px solid var(--border2)}
+.btn-ghost:not(:disabled):hover{background:var(--border);color:var(--text)}
+.btn-sm{padding:5px 11px;font-size:12px}
+.form-actions{margin-top:18px;display:flex;gap:8px;align-items:center}
+
+/* ── Divider ── */
+hr.div{border:none;border-top:1px solid var(--border);margin:18px 0}
+
+/* ── Result ── */
+#result-area{margin-top:2px}
+.res-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 12px;background:var(--surface2);border-radius:4px;margin-bottom:3px;
+}
+.res-label{color:var(--text-dim);font-size:12px}
+.res-value{font-family:var(--mono);font-size:12px;color:var(--text)}
+.sec-title{
+  font-size:11px;font-weight:600;text-transform:uppercase;
+  letter-spacing:0.5px;color:var(--text-dim);margin-bottom:7px;
+}
+.status-ok{color:var(--success);font-weight:600;font-size:13px}
+.status-err{color:var(--danger);font-weight:600;font-size:13px}
+.err-box{
+  background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.3);
+  color:var(--danger);padding:10px 14px;border-radius:6px;font-size:13px;
+  line-height:1.5;word-break:break-all;
+}
+.success-box{
+  background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.25);
+  padding:10px 14px;border-radius:6px;margin-bottom:14px;
+  display:flex;align-items:center;gap:8px;
+}
+
+/* ── Packet table ── */
+.pkt-tbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.pkt-tbl th{
+  text-align:left;padding:6px 10px;
+  background:var(--surface3);color:var(--text-dim);
+  font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;
+  border-bottom:1px solid var(--border);
+}
+.pkt-tbl td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.pkt-tbl tr:last-child td{border-bottom:none}
+.pkt-tbl tbody tr:hover td{background:var(--surface2)}
+.pkt-no{font-family:var(--mono);color:var(--text-muted);width:30px}
+.pkt-bytes{font-family:var(--mono);color:var(--accent);text-align:right;width:56px;white-space:nowrap}
+.pkt-desc{color:var(--text);line-height:1.4}
+
+/* ── Right panel — tail ── */
+.tail-toolbar{
+  flex-shrink:0;
+  background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;gap:8px;padding:10px 16px;align-items:center;flex-wrap:wrap;
+}
+.tail-toolbar input{
+  flex:1;min-width:180px;
+  background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);padding:7px 10px;border-radius:6px;
+  font-size:12px;font-family:var(--mono);transition:border-color .15s;
+}
+.tail-toolbar input:focus{outline:none;border-color:var(--accent)}
+.tail-toolbar input::placeholder{color:var(--text-muted);font-style:italic}
+.tail-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--text-muted);flex-shrink:0;
+  transition:background .3s;
+}
+.tail-dot.active{background:var(--success);box-shadow:0 0 5px var(--success)}
+.tail-stat-txt{font-size:11px;color:var(--text-muted)}
+
+#log-out{
+  flex:1;overflow-y:auto;
+  padding:12px 18px;
+  font-family:var(--mono);font-size:12px;line-height:1.75;
+  white-space:pre-wrap;word-break:break-all;
+  color:#9daabb;background:var(--bg);
+}
+#log-out .ll:hover{background:rgba(255,255,255,.03);border-radius:2px}
+#log-out .ll-err{color:var(--danger)}
+.log-placeholder{color:var(--text-muted);font-style:italic;font-family:inherit;font-size:13px}
+
+/* ── Spinner ── */
+.spinner{
+  display:inline-block;width:13px;height:13px;
+  border:2px solid rgba(255,255,255,.25);border-top-color:#fff;
+  border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-muted)}
+
+/* ── Log wrap + new-message badge ── */
+.log-wrap{position:relative;flex:1;overflow:hidden;display:flex;flex-direction:column}
+.new-msg-badge{
+  position:absolute;bottom:14px;right:18px;z-index:10;
+  background:var(--accent);color:#fff;border:none;border-radius:20px;
+  padding:5px 14px;font-size:12px;font-weight:500;font-family:inherit;
+  cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.45);
+  display:none;user-select:none;
+  animation:fadeInUp .18s ease;
+}
+.new-msg-badge:hover{background:var(--accent-h)}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.load-more-ind{
+  text-align:center;padding:5px 0;
+  color:var(--text-muted);font-size:11px;font-family:inherit;
+  flex-shrink:0;
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="hd">
+  <div class="hd-logo">
+    <div class="hd-icon">TR</div>
+    <span class="hd-title">Traffic Replayer</span>
+    <span class="hd-sub">Web Console</span>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- ── Left: Mock Test ── -->
+  <div class="panel">
+    <div class="panel-hd">
+      <span class="panel-hd-title">Mock 流量测试</span>
+    </div>
+    <div class="panel-body">
+
+      <form id="mock-form" onsubmit="return false">
+
+        <div class="fg">
+          <label>网络接口 <span class="req">*</span></label>
+          <input id="f-iface" type="text" placeholder="如: eth0, veth0, en0" autocomplete="off" />
+        </div>
+
+        <div class="fg">
+          <label>测试类型</label>
+          <select id="f-type" onchange="onTypeChange()">
+            <option value="http">HTTP — TCP 握手 + HTTP 请求/响应 + TCP 挥手（11 包）</option>
+            <option value="ping">Ping — ICMP Echo Request / Reply（2 包）</option>
+            <option value="arp">ARP — ARP Request / Reply（2 包）</option>
+            <option value="all">All — ARP + Ping + HTTP（15 包）</option>
+          </select>
+        </div>
+
+        <div class="row2">
+          <div class="fg">
+            <label>源 IP <span class="req">*</span></label>
+            <input id="f-src-ip" type="text" placeholder="192.168.1.100" autocomplete="off" />
+          </div>
+          <div class="fg">
+            <label>目标 IP <span class="req">*</span></label>
+            <input id="f-dst-ip" type="text" placeholder="192.168.1.200" autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="fg" id="uri-group">
+          <label>自定义 URI</label>
+          <input id="f-uri" type="text" placeholder="/api/users?id=*（* 将被替换为随机值）" autocomplete="off" />
+          <div class="hint">仅对 HTTP / All 有效，留空则使用随机路径</div>
+        </div>
+
+        <div class="fg">
+          <label>重复次数</label>
+          <input id="f-count" type="number" value="1" min="1" max="9999" />
+          <div class="hint">数据包清单展示第 1 轮，统计信息为所有轮次累计</div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-primary" id="send-btn" onclick="doSendMock()">发送测试</button>
+          <button class="btn btn-ghost" onclick="doClearResult()">清空结果</button>
+        </div>
+
+      </form>
+
+      <div id="result-area" style="display:none">
+        <hr class="div">
+        <div id="result-content"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Right: Log Tail ── -->
+  <div class="panel">
+    <div class="panel-hd">
+      <span class="panel-hd-title">实时日志监控</span>
+    </div>
+    <div class="tail-toolbar">
+      <input id="tail-path" type="text" placeholder="文件路径，如 /test/logs/deeptrace.log"
+             onkeydown="if(event.key==='Enter')startTail()" />
+      <button class="btn btn-success btn-sm" id="tail-start-btn" onclick="startTail()">开始监控</button>
+      <button class="btn btn-danger btn-sm" id="tail-stop-btn" onclick="stopTail()" disabled>停止</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearLog()">清空</button>
+      <div class="tail-dot" id="tail-dot"></div>
+      <span class="tail-stat-txt" id="tail-stat">未连接</span>
+    </div>
+    <div class="log-wrap">
+      <div id="log-out"><span class="log-placeholder">待监控 &mdash; 输入文件路径后点击「开始监控」</span></div>
+      <button class="new-msg-badge" id="new-msg-badge">↓ <span id="new-msg-count">0</span> 条新消息</button>
+    </div>
+  </div>
+
+</div><!-- .layout -->
+
+<script>
+// Mock Test
+function onTypeChange() {
+  const t = document.getElementById('f-type').value;
+  document.getElementById('uri-group').style.display =
+    (t === 'ping' || t === 'arp') ? 'none' : '';
+}
+
+async function doSendMock() {
+  const iface  = v('f-iface');
+  const srcIP  = v('f-src-ip');
+  const dstIP  = v('f-dst-ip');
+
+  if (!iface || !srcIP || !dstIP) {
+    flash(['f-iface','f-src-ip','f-dst-ip'].filter(id => !v(id)));
+    return;
+  }
+
+  const payload = {
+    iface:   iface,
+    type:    v('f-type'),
+    src_ip:  srcIP,
+    dst_ip:  dstIP,
+    uri:     v('f-uri'),
+    count:   parseInt(v('f-count')) || 1,
+  };
+
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 发送中…';
+
+  try {
+    const resp = await fetch('/api/mock', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await resp.json();
+    showResult(data, payload);
+  } catch (e) {
+    showResult({success: false, error: '网络请求失败: ' + e.message}, payload);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '发送测试';
+  }
+}
+
+function showResult(data, req) {
+  const area = document.getElementById('result-area');
+  const cont = document.getElementById('result-content');
+  area.style.display = '';
+
+  if (!data.success) {
+    cont.innerHTML = `<div class="err-box">✗ ${escape(data.error || '未知错误')}</div>`;
+    return;
+  }
+
+  const s = data.stats;
+  const countNote = data.count > 1 ? `（共 ${data.count} 轮）` : '';
+
+  let html = `
+    <div class="success-box">
+      <span class="status-ok">✓ 发送成功</span>
+      <span style="color:var(--text-dim);font-size:12px">接口: ${escape(req.iface)}</span>
+    </div>`;
+
+  // Stats
+  html += `<div class="sec-title">统计信息${countNote}</div>`;
+  html += statRows([
+    ['发送包数',   s.packets_sent + ' 个'],
+    ['发送字节',   fmtBytes(s.bytes_sent)],
+    ['失败包数',   s.packets_failed + ' 个'],
+    ['持续时间',   s.duration],
+    ['实际源 MAC', data.src_mac],
+    ['实际目标 MAC', data.dst_mac],
+  ]);
+
+  // Packets
+  if (data.packets && data.packets.length > 0) {
+    const note = data.count > 1 ? '（第 1 轮）' : '';
+    html += `<div class="sec-title" style="margin-top:14px">数据包清单${note}</div>
+      <table class="pkt-tbl">
+        <thead><tr><th>#</th><th>描述</th><th style="text-align:right">大小</th></tr></thead>
+        <tbody>`;
+    for (const p of data.packets) {
+      html += `<tr>
+        <td class="pkt-no">${p.index}</td>
+        <td class="pkt-desc">${escape(p.desc)}</td>
+        <td class="pkt-bytes">${p.bytes} B</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+  }
+
+  cont.innerHTML = html;
+  area.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function doClearResult() {
+  document.getElementById('result-area').style.display = 'none';
+  document.getElementById('result-content').innerHTML = '';
+}
+
+function statRows(rows) {
+  return rows.map(([k, val]) =>
+    `<div class="res-row">
+       <span class="res-label">${escape(k)}</span>
+       <span class="res-value">${escape(String(val))}</span>
+     </div>`
+  ).join('');
+}
+
+// Log Tail (init + SSE + lazy history)
+let tailES        = null;   // EventSource
+let sseOffset     = 0;      // SSE 当前读取到的字节偏移
+let topOffset     = 0;      // 已显示内容顶部的字节偏移（用于向上翻页）
+let hasMoreHist   = false;  // 是否还有更多历史内容
+let isLoadingHist = false;  // 防止并发加载
+let newMsgCount   = 0;      // 未读新消息数量
+let atBottom      = true;   // 是否固定在底部
+
+const TAIL_LINES  = 300;    // 每次加载的行数
+
+function startTail() {
+  const path = v('tail-path');
+  if (!path) { document.getElementById('tail-path').focus(); return; }
+  stopTail();
+
+  const out = document.getElementById('log-out');
+  out.innerHTML = '';
+  newMsgCount = 0;
+  atBottom    = true;
+  hideBadge();
+  setTailUI('正在连接…', false);
+
+  // 第一步：拉取末尾 N 行
+  fetch('/api/logfile/init?path=' + encodeURIComponent(path) + '&tail=' + TAIL_LINES)
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(data => {
+      topOffset   = data.start_offset;
+      sseOffset   = data.end_offset;
+      hasMoreHist = data.has_more;
+
+      if (data.lines && data.lines.length > 0) {
+        data.lines.forEach(line => appendLogLine(line, false, false, /*noScroll*/true));
+      } else {
+        appendLogLine('[文件为空或暂无内容]', true, false, true);
+      }
+      if (hasMoreHist) prependLoadMore();
+
+      // 滚动到底部
+      out.scrollTop = out.scrollHeight;
+      atBottom = true;
+
+      // 第二步：从 end_offset 开始 SSE 监听
+      connectSSE(path, sseOffset);
+    })
+    .catch(e => {
+      setTailUI('连接失败', false);
+      resetTailBtns();
+      appendLogLine('[错误] 初始化失败: ' + e.message, false, true, false);
+    });
+}
+
+function connectSSE(path, offset) {
+  const url = '/api/logfile/tail?path=' + encodeURIComponent(path) + '&offset=' + offset;
+  tailES = new EventSource(url);
+
+  tailES.addEventListener('connected', () => {
+    setTailUI('监控中', true);
+    document.getElementById('tail-start-btn').disabled = true;
+    document.getElementById('tail-stop-btn').disabled  = false;
+  });
+
+  tailES.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      sseOffset = msg.offset;
+      // text 可能包含多行（批量读取）
+      const raw   = msg.text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      const parts = raw.split('\n');
+      // 最后一个 split 结果若为空字符串则是末尾换行，忽略
+      const lines = (parts[parts.length - 1] === '') ? parts.slice(0, -1) : parts;
+      lines.forEach(l => appendLogLine(l, false, false, false));
+    } catch (_) {}
+  };
+
+  tailES.addEventListener('error', (e) => {
+    if (e.data) appendLogLine('[错误] ' + e.data, false, true, false);
+  });
+
+  tailES.onerror = () => {
+    if (tailES && tailES.readyState === EventSource.CLOSED) {
+      setTailUI('已断开', false);
+      resetTailBtns();
+      appendLogLine('[连接已断开]', true, false, false);
+    }
+  };
+}
+
+function stopTail() {
+  if (tailES) { tailES.close(); tailES = null; }
+  setTailUI('已停止', false);
+  resetTailBtns();
+}
+
+function clearLog() {
+  document.getElementById('log-out').innerHTML = '';
+  topOffset   = 0;
+  hasMoreHist = false;
+  newMsgCount = 0;
+  hideBadge();
+}
+
+// appendLogLine 向日志区追加一行内容
+// noScroll=true 时只追加不滚动（用于批量初始渲染）
+function appendLogLine(text, dim, isErr, noScroll) {
+  const out  = document.getElementById('log-out');
+  const span = document.createElement('span');
+  span.className = 'll' + (isErr ? ' ll-err' : '');
+  if (dim) span.style.color = 'var(--text-muted)';
+  span.textContent = text + '\n';
+  out.appendChild(span);
+
+  if (noScroll) return;
+
+  if (atBottom) {
+    out.scrollTop = out.scrollHeight;
+  } else {
+    newMsgCount++;
+    showBadge();
+  }
+}
+
+// prependLoadMore 在 #log-out 顶部插入"加载更多"提示
+function prependLoadMore() {
+  const out = document.getElementById('log-out');
+  const old = out.querySelector('.load-more-ind');
+  if (old) old.remove();
+  const div = document.createElement('div');
+  div.className = 'load-more-ind';
+  div.textContent = '向上滚动加载更多历史…';
+  out.insertBefore(div, out.firstChild);
+}
+
+function removeLoadMore() {
+  const el = document.getElementById('log-out').querySelector('.load-more-ind');
+  if (el) el.remove();
+}
+
+// loadHistory 向上翻页加载历史内容，保持视图位置不跳动
+async function loadHistory() {
+  if (isLoadingHist || !hasMoreHist || topOffset === 0) return;
+  const path = v('tail-path');
+  if (!path) return;
+
+  isLoadingHist = true;
+  const out = document.getElementById('log-out');
+  const ind = out.querySelector('.load-more-ind');
+  if (ind) ind.textContent = '加载中…';
+
+  try {
+    const resp = await fetch(
+      '/api/logfile/history?path=' + encodeURIComponent(path) +
+      '&end_offset=' + topOffset + '&lines=' + TAIL_LINES
+    );
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+
+    if (data.lines && data.lines.length > 0) {
+      // 记录插入前高度，插入后补偿 scrollTop，避免视图跳动
+      const prevHeight = out.scrollHeight;
+      removeLoadMore();
+
+      const frag = document.createDocumentFragment();
+      if (data.has_more) {
+        const lm = document.createElement('div');
+        lm.className = 'load-more-ind';
+        lm.textContent = '向上滚动加载更多历史…';
+        frag.appendChild(lm);
+      }
+      data.lines.forEach(line => {
+        const span = document.createElement('span');
+        span.className = 'll';
+        span.textContent = line + '\n';
+        frag.appendChild(span);
+      });
+      out.insertBefore(frag, out.firstChild);
+
+      // 补偿滚动：新增高度多少就往下移多少，保持用户视图稳定
+      out.scrollTop += out.scrollHeight - prevHeight;
+
+      topOffset   = data.start_offset;
+      hasMoreHist = data.has_more;
+    } else {
+      removeLoadMore();
+      hasMoreHist = false;
+    }
+  } catch (e) {
+    const ind2 = out.querySelector('.load-more-ind');
+    if (ind2) ind2.textContent = '加载失败，向上滚动重试';
+  } finally {
+    isLoadingHist = false;
+  }
+}
+
+function showBadge() {
+  document.getElementById('new-msg-count').textContent = newMsgCount;
+  document.getElementById('new-msg-badge').style.display = 'block';
+}
+
+function hideBadge() {
+  newMsgCount = 0;
+  document.getElementById('new-msg-badge').style.display = 'none';
+}
+
+function setTailUI(txt, active) {
+  document.getElementById('tail-stat').textContent = txt;
+  document.getElementById('tail-dot').className = 'tail-dot' + (active ? ' active' : '');
+}
+
+function resetTailBtns() {
+  document.getElementById('tail-start-btn').disabled = false;
+  document.getElementById('tail-stop-btn').disabled  = true;
+}
+
+// 点击徽章：滚到底部，恢复自动跟随
+document.getElementById('new-msg-badge').addEventListener('click', function() {
+  const out = document.getElementById('log-out');
+  out.scrollTop = out.scrollHeight;
+  atBottom = true;
+  hideBadge();
+});
+
+// 滚动事件：检测是否到达顶部（触发历史加载）或底部（恢复自动跟随）
+document.getElementById('log-out').addEventListener('scroll', function() {
+  const distFromBottom = this.scrollHeight - this.scrollTop - this.clientHeight;
+  if (distFromBottom < 30) {
+    atBottom = true;
+    hideBadge();
+  } else {
+    atBottom = false;
+  }
+  // 距顶部不足 100px 时触发历史加载
+  if (this.scrollTop < 100 && hasMoreHist && !isLoadingHist) {
+    loadHistory();
+  }
+});
+
+// Utilities
+function v(id) {
+  return (document.getElementById(id).value || '').trim();
+}
+
+function escape(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+  return (b/1024/1024).toFixed(2) + ' MB';
+}
+
+function flash(ids) {
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    const orig = el.style.borderColor;
+    el.style.borderColor = 'var(--danger)';
+    el.focus();
+    setTimeout(() => { el.style.borderColor = orig; }, 1500);
+  });
+}
+
+// 初始化
+onTypeChange();
+</script>
+</body>
+</html>

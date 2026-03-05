@@ -1,0 +1,25 @@
+services:
+  replayer-test:
+    build:
+      context: ../..
+      dockerfile: docker/local-test/Dockerfile
+    image: traffic-replayer:local-test
+    container_name: replayer-local-test
+    # privileged 模式确保可以创建 veth pair 和设置混杂模式
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      - REPLAYER_SPEED=${REPLAYER_SPEED:-1.0}
+      - REPLAYER_CIDR=${REPLAYER_CIDR:-}
+    volumes:
+      - ./logs:/test/logs
+      - ./output:/test/output
+    networks:
+      - replayer-net
+
+networks:
+  replayer-net:
+    driver: bridge
+    enable_ipv6: false

@@ -191,13 +191,13 @@ uninstall:
 # 显示版本信息
 .PHONY: version
 version:    - 构建当前平台版本 (默认)"
-	@echo "  build-linux            - 交叉编译到 Linux AMD64 (需要工具链)"
-	@echo "  build-linux-docker     - 使用 Docker 构建 Linux AMD64 (推荐)"
-	@echo "  build-linux-arm64      - 交叉编译到 Linux ARM64 (需要工具链)"
+	@echo "  build-linux              - 交叉编译到 Linux AMD64 (需要工具链)"
+	@echo "  build-linux-docker       - 使用 Docker 构建 Linux AMD64 (推荐)"
+	@echo "  build-linux-arm64        - 交叉编译到 Linux ARM64 (需要工具链)"
 	@echo "  build-linux-arm64-docker - 使用 Docker 构建 Linux ARM64 (推荐)"
-	@echo "  build-darwin           - 交叉编译到 macOS AMD64"
-	@echo "  build-darwin-arm64     - 交叉编译到 macOS ARM64"
-	@echo "  build-windows          - 交叉编译到 Windows AMD64"
+	@echo "  build-darwin             - 交叉编译到 macOS AMD64"
+	@echo "  build-darwin-arm64       - 交叉编译到 macOS ARM64"
+	@echo "  build-windows            - 交叉编译到 Windows AMD64"
 	@echo "  build-all    
 	@echo "流量回放工具 - Makefile 帮助"
 	@echo ""

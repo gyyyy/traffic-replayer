@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"net/url"
 	"strings"
 	"time"
 
@@ -250,8 +251,8 @@ func (g *HTTPTestGenerator) createTCPPacket(_ time.Time, flags uint8, seq, ack u
 // processURIWithRandomization 处理 URI 中的*占位符，将其替换为随机值
 func (g *HTTPTestGenerator) processURIWithRandomization(uri string) string {
 	var result strings.Builder
-	for i := 0; i < len(uri); i++ {
-		if uri[i] == '*' {
+	for _, r := range uri {
+		if r == '*' {
 			// 生成随机值（数字或字符串）
 			if randomInt(2) == 0 {
 				// 生成随机数字
@@ -261,18 +262,30 @@ func (g *HTTPTestGenerator) processURIWithRandomization(uri string) string {
 				result.WriteString(randomString(8))
 			}
 		} else {
-			result.WriteString(string(uri[i]))
+			result.WriteRune(r)
 		}
 	}
 	return result.String()
+}
+
+// encodeURI 对 URI 进行百分号编码，确保非 ASCII 字符（如中文）被正确编码
+func encodeURI(rawURI string) string {
+	u, err := url.Parse(rawURI)
+	if err != nil {
+		return rawURI
+	}
+	if u.RawQuery != "" {
+		u.RawQuery = u.Query().Encode()
+	}
+	return u.RequestURI()
 }
 
 // generateHTTPRequest 生成 HTTP 请求（支持自定义 URI）
 func (g *HTTPTestGenerator) generateHTTPRequest() string {
 	var path string
 	if g.customURI != "" {
-		// 使用自定义 URI，并处理*占位符
-		path = g.processURIWithRandomization(g.customURI)
+		// 使用自定义 URI，并处理*占位符，然后对非 ASCII 字符进行 URL 编码
+		path = encodeURI(g.processURIWithRandomization(g.customURI))
 	} else {
 		// 使用默认的随机路径
 		paths := []string{

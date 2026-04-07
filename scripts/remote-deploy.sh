@@ -99,7 +99,7 @@ fi
 SSH_CONTROL_PATH="/tmp/ssh-traffic-replayer-%r@%h:%p"
 SSH_OPTS="-o ControlMaster=auto -o ControlPath=${SSH_CONTROL_PATH} -o ControlPersist=300"
 SSH_CMD="ssh ${SSH_OPTS} -p ${REMOTE_PORT} ${REMOTE_USER}@${REMOTE_HOST}"
-SCP_CMD="scp ${SSH_OPTS} -P ${REMOTE_PORT}"
+SCP_CMD="scp -O ${SSH_OPTS} -P ${REMOTE_PORT}"
 
 # 清理函数
 cleanup_ssh() {
@@ -130,6 +130,27 @@ $SSH_CMD "mkdir -p ${REMOTE_DIR}/{bin,logs,data}" || {
     exit 1
 }
 echo -e "${COLOR_GREEN}✓ 目录创建成功${COLOR_RESET}"
+
+# 检查并停止正在运行的进程
+echo ""
+echo -e "${COLOR_YELLOW}🔍 检查运行状态...${COLOR_RESET}"
+RUNNING_PIDS=$($SSH_CMD "pgrep -f traffic-replayer" 2>/dev/null || true)
+if [ -n "$RUNNING_PIDS" ]; then
+    echo -e "${COLOR_YELLOW}⚠️  发现正在运行的进程 (PID: $(echo $RUNNING_PIDS | tr '\n' ' '))，正在停止...${COLOR_RESET}"
+    # 注意：pkill 可能导致 SSH 会话断开（若进程运行在该会话中），|| true 忽略本地 SSH 退出码
+    $SSH_CMD "pkill -f traffic-replayer" 2>/dev/null || true
+    sleep 2
+    # 确认是否还有残留进程（ControlMaster=auto 会自动重建连接）
+    STILL_RUNNING=$($SSH_CMD "pgrep -f traffic-replayer" 2>/dev/null || true)
+    if [ -n "$STILL_RUNNING" ]; then
+        echo -e "${COLOR_YELLOW}  进程未响应，强制终止...${COLOR_RESET}"
+        $SSH_CMD "pkill -9 -f traffic-replayer" 2>/dev/null || true
+        sleep 1
+    fi
+    echo -e "${COLOR_GREEN}✓ 进程已停止${COLOR_RESET}"
+else
+    echo -e "${COLOR_GREEN}✓ 无正在运行的进程${COLOR_RESET}"
+fi
 
 # 上传二进制文件
 echo ""
@@ -233,6 +254,28 @@ EOF
     echo "  停止: systemctl stop traffic-replayer"
     echo "  状态: systemctl status traffic-replayer"
     echo "  开机启动: systemctl enable traffic-replayer"
+fi
+
+# 询问是否启动 web 服务
+echo ""
+read -p "🌐 是否启动 Web 服务? [y/N]: " start_web
+if [[ "$start_web" =~ ^[Yy]$ ]]; then
+    read -p "   监听地址 [:18080]: " web_addr
+    web_addr=${web_addr:-:18080}
+
+    echo -e "${COLOR_YELLOW}🚀 启动 Web 服务 (${web_addr})...${COLOR_RESET}"
+    $SSH_CMD "nohup ${REMOTE_DIR}/bin/traffic-replayer web --addr ${web_addr} > ${REMOTE_DIR}/logs/web.log 2>&1 &"
+    sleep 1
+    WEB_PID=$($SSH_CMD "pgrep -f 'traffic-replayer web'" 2>/dev/null || true)
+    if [ -n "$WEB_PID" ]; then
+        echo -e "${COLOR_GREEN}✓ Web 服务已启动 (PID: ${WEB_PID})${COLOR_RESET}"
+        # 解析端口，拼接访问地址
+        WEB_PORT=$(echo "$web_addr" | sed 's/.*://')
+        echo -e "${COLOR_BLUE}   访问地址: http://${REMOTE_HOST}:${WEB_PORT}${COLOR_RESET}"
+        echo -e "${COLOR_BLUE}   日志文件: ${REMOTE_DIR}/logs/web.log${COLOR_RESET}"
+    else
+        echo -e "${COLOR_RED}❌ Web 服务启动失败，请查看日志: ${REMOTE_DIR}/logs/web.log${COLOR_RESET}"
+    fi
 fi
 
 # 部署完成
